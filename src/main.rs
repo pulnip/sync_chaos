@@ -1,3 +1,10 @@
+mod simulation;
+mod renderer;
+
 fn main() {
-    println!("Hello, world!");
+    tracing_subscriber::fmt::init();
+
+    if let Err(e) = renderer::run() {
+        eprintln!("Application error: {}", e);
+    }
 }

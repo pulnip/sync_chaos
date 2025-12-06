@@ -47,8 +47,8 @@ fn aizawa_derivative(p: Vec3, params: &AizawaParams) -> Vec3 {
 ```
 
 **체크포인트**: 
-- [ ] 파티클 1개가 attractor 궤적을 따라 움직임
-- [ ] 1000개 이상의 파티클이 화면에 그려짐
+- [x] 파티클 1개가 attractor 궤적을 따라 움직임
+- [x] 1000개 이상의 파티클이 화면에 그려짐
 
 ---
 

@@ -120,9 +120,9 @@ synchronized-chaos/
 The Aizawa system is defined by:
 
 ```
-dx/dt = (z - b) * x - d * y
-dy/dt = d * x + (z - b) * y
-dz/dt = c + a * z - (z³ / 3) - (x² + y²) * (1 + e * z) + f * z * x³
+dx/dt = (z - b)*x - d*y
+dy/dt = d*x + (z - b)*y
+dz/dt = c + a*z - z³/3 - (x² + y²)*(1 + e*z) + f*z*x³
 ```
 
 Default parameters: `a=0.95, b=0.7, c=0.6, d=3.5, e=0.25, f=0.1`
@@ -130,7 +130,7 @@ Default parameters: `a=0.95, b=0.7, c=0.6, d=3.5, e=0.25, f=0.1`
 ## Roadmap
 
 - [x] Project setup
-- [ ] **Phase 1**: Basic simulation + visualization
+- [x] **Phase 1**: Basic simulation + visualization
 - [ ] **Phase 2**: Job System for parallel particle updates  
 - [ ] **Phase 3**: Network sync (fixed host)
 - [ ] **Phase 4**: Auto-discovery (dynamic host)

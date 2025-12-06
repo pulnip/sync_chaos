@@ -4,3 +4,24 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+# GUI
+eframe = "0.27"
+egui = "0.27"
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Parallelism
+crossbeam = "0.8"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+bincode = "1"
+
+# Math
+rand = "0.8"
+glam = { version = "0.27", features = ["serde"] }
+
+# Logging (optional but helpful)
+tracing = "0.1"
+tracing-subscriber = "0.3"
