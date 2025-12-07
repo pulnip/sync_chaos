@@ -1,7 +1,10 @@
+use std::sync::{Arc, Mutex};
+use std::time::Instant;
 use eframe::egui;
 use egui::Color32;
 use glam::{Vec3, Vec4, Quat};
 use crate::simulation::{AizawaParams, Particle, step_rk4};
+use crate::job_system::ThreadPool;
 use super::{Camera, Grid};
 
 /// Main application state
@@ -9,7 +12,9 @@ pub struct App {
     particles: Vec<Particle>,
     params: AizawaParams,
     camera: Camera,
-    grid: Grid
+    grid: Grid,
+    thread_pool: ThreadPool,
+    use_parallel: bool
 }
 
 impl App {
@@ -18,11 +23,17 @@ impl App {
             .with_position(Vec3::new(4.0, 3.0, 4.0));
         camera.look_at(Vec3::ZERO);
 
+        let num_workers = std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(4);
+
         Self {
-            particles: Particle::spawn_batch(1000),
+            particles: Particle::spawn_batch(100_000),
             params: AizawaParams::default(),
             camera: camera,
-            grid: Grid::new(4.0, 0.5)
+            grid: Grid::new(4.0, 0.5),
+            thread_pool: ThreadPool::new(num_workers),
+            use_parallel: false
         }
     }
 }
@@ -31,13 +42,68 @@ impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Update simulation
         let dt = 0.01;
-        for particle in &mut self.particles {
-            particle.position = step_rk4(particle.position, &self.params, dt);
+
+        let start = Instant::now();
+
+        if self.use_parallel {
+
+            let particles = Arc::new(Mutex::new(
+                std::mem::take(&mut self.particles)));
+            let num_particles = particles.lock().unwrap().len();
+            let params = self.params.clone();
+
+            let num_workers = 4;
+            let chunk_size = (num_particles + num_workers - 1) / num_workers;
+
+            let remaining = Arc::new(Mutex::new(num_workers));
+            let condvar = Arc::new(std::sync::Condvar::new());
+
+            for chunk_idx in 0..num_workers {
+                let particles = Arc::clone(&particles);
+                let params = params.clone();
+                let remaining = Arc::clone(&remaining);
+                let condvar = Arc::clone(&condvar);
+
+                let start = chunk_idx * chunk_size;
+                let end = ((chunk_idx + 1) * chunk_size).min(num_particles);
+
+                self.thread_pool.submit(move || {
+                    let mut particles = particles.lock().unwrap();
+                    for i in start..end {
+                        particles[i].position = step_rk4(particles[i].position, &params, dt);
+                    }
+                    drop(particles);
+
+                    let mut rem = remaining.lock().unwrap();
+                    *rem -= 1;
+                    if *rem == 0 {
+                        condvar.notify_one();
+                    }
+                });
+            }
+
+            {
+                let mut rem = remaining.lock().unwrap();
+                while *rem > 0 {
+                    rem = condvar.wait(rem).unwrap();
+                }
+            }
+    
+            self.particles = std::mem::take(&mut *particles.lock().unwrap());
         }
+        else {
+            for particle in &mut self.particles {
+                particle.position = step_rk4(particle.position, &self.params, dt);
+            }
+        }
+
+        let elapsed = start.elapsed();
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Synchronized Chaos");
             ui.label(format!("Particles: {}", self.particles.len()));
+            ui.label(format!("Sim Time: {:.2}ms", elapsed.as_secs_f64() * 1000.0));
+            ui.checkbox(&mut self.use_parallel, "Parallel update");
 
             let (response, painter) = ui.allocate_painter(
                 ui.available_size(),
