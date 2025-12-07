@@ -1,7 +1,8 @@
 use eframe::egui;
-use glam::{Vec3, Quat};
+use egui::Color32;
+use glam::{Vec3, Vec4, Quat};
 use crate::simulation::{AizawaParams, Particle, step_rk4};
-use super::{Camera, Grid, project};
+use super::{Camera, Grid};
 
 /// Main application state
 pub struct App {
@@ -63,16 +64,26 @@ impl eframe::App for App {
 
             // Draw particles
             for particle in &self.particles {
-                let pos = project(particle.position, &vp, center, half_size);
-
-                // Depth-based coloring
-                let depth = particle.position.x + particle.position.y + particle.position.z;
-                let depth_normalized = ((depth + 3.0) / 6.0).clamp(0.0, 1.0);
-                let color = egui::Color32::from_rgb(
-                    (100.0 + 155.0 * depth_normalized) as u8,
-                    (200.0 * (1.0 - depth_normalized * 0.5)) as u8,
-                    255,
+                let clip = vp * Vec4::new(
+                    particle.position.x,
+                    particle.position.y,
+                    particle.position.z,
+                    1.0
                 );
+                let ndc = clip.truncate() / clip.w;
+
+                let pos = egui::Pos2{
+                    x: center.x + half_size.0 * ndc.x,
+                    y: center.y - half_size.1 * ndc.y 
+                };
+
+                let depth = ndc.z.clamp(0.0, 1.0);
+
+                let alpha = ((1.0 - depth) * 200.0 + 55.0) as u8;
+                let brightness = ((1.0 - depth) * 155.0 + 100.0) as u8;
+
+                let color = Color32::from_rgba_unmultiplied(
+                    brightness, brightness, 255, alpha);
 
                 painter.circle_filled(pos, 2.0, color);
             }
